@@ -7,7 +7,7 @@ def QP_solver(A1,A2,b1,b2,g,H):
 
 def IRWA_QP_solver(A1, A2, b1, b2, g, H):
     """
-    Solves a quadratic programming subproblem using IRWA.
+    IRWA: Iterative Reweighting Algorithm for QP problems. 
 
     Args:
         A1, A2: Matrices for the equality and inequality constraints.
@@ -18,46 +18,65 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
     Returns:
         x: Solution to the quadratic programming subproblem.
     """
-    # Parameters
-    max_iter = 1  # Maximum iterations
-    tol = 1e-6      # Convergence tolerance
-    eta = 0.5       # Scaling parameter
-    gamma = 1e-2    # Relaxation parameter
-    M = 10          # Threshold parameter
-    A = np.concatenate([A1, A2])
-    print("A:", A, A.shape)
-
+    
     # Initialization
-    x = np.zeros(g.shape)  # Initial guess
-    epsilon = np.ones(b1.shape) * 1e-2  # Initial relaxation vector
+    eta=0.9
+    gamma=0.1
+    M=10
+    sigma=1e-6
+    sigma_prime=1e-6
+    max_iter=1000
+    x = x0 # wait to be define
+    epsilon = epsilon0 # wait to be define
+    k = 0
+    m = A1.shape[0] + A2.shape[0]
+    I1 = range(A1.shape[0])  # Equality indices
+    I2 = range(A1.shape[0], m)  # Inequality indices
 
-    for k in range(max_iter):
+    while k < max_iter:
         # Step 1: Solve the reweighted subproblem
-        # TODO: W, v redefine!!!
-        W = np.diag([1.0 / (np.linalg.norm(A1[i] @ x - b1[i]) + epsilon[i]) for i in range(len(b1))])
-        v2 = np.maximum(b2 - A2 @ x, 0)
-        print("v2", v2, v2.shape)
-        v = np.maximum(b2 - A2 @ x, 0)
-        
-        # TODO: H_eff, g_eff redefine!!!
-        H_eff = H + A2.T @ W @ A2
-        g_eff = g + A2.T @ v
+        W_diag = []
+        v = []
 
-        # Solve linear system H_eff x + g_eff = 0
+        for i in I1:
+            wi = 1 / np.sqrt((np.dot(A1[i], x) + b1[i])**2 + epsilon[i]**2)
+            W_diag.append(wi)
+            v.append(b1[i])
+
+        for i, j in zip(I2, range(A2.shape[0])):
+            max_term = max(np.dot(A2[j], x) + b2[j], 0)
+            wi = 1 / np.sqrt(max_term**2 + epsilon[i]**2)
+            W_diag.append(wi)
+            v.append(max(-np.dot(A2[j], x), b2[j]))
+
+        W = np.diag(W_diag)
+        v = np.array(v)
+
+        H_eff = H + np.dot(np.dot(A1.T, W[:A1.shape[0], :A1.shape[0]]), A1) + \
+                np.dot(np.dot(A2.T, W[A1.shape[0]:, A1.shape[0]:]), A2)
+        g_eff = g + np.dot(np.dot(A1.T, W[:A1.shape[0], :A1.shape[0]]), v[:A1.shape[0]]) + \
+                np.dot(np.dot(A2.T, W[A1.shape[0]:, A1.shape[0]:]), v[A1.shape[0]:])
+
+        # Solve for x
         x_new = np.linalg.solve(H_eff, -g_eff)
 
         # Step 2: Update relaxation vector
-        # TODO: q_i, r_i redefine!!! there should be a for iteration
-        q_i = A1 @ x_new - b1
-        r_i = np.maximum(0, A2 @ x_new + b2)
+        q = np.array([np.dot(A1[i], x_new - x) for i in I1] + 
+                     [np.dot(A2[j], x_new - x) for j in range(A2.shape[0])])
+        r = np.array([1 - v[i] * (np.dot(A1[i], x) + b1[i]) for i in I1] +
+                     [1 - v[i + len(I1)] * (np.dot(A2[j], x) + b2[j]) for j in range(A2.shape[0])])
 
-        epsilon = np.minimum(eta * epsilon, (q_i / r_i) ** (2 / (3 + gamma)))
+        if np.all(np.abs(q) <= M * np.sqrt(r**2 + epsilon**2) ** (1 + gamma)):
+            epsilon = eta * epsilon
+        else:
+            epsilon = epsilon
 
-        # Step 3: Convergence check
-        if np.linalg.norm(x_new - x) < tol:
+        # Step 3: Check stopping criteria
+        if np.linalg.norm(x_new - x) <= sigma and np.linalg.norm(epsilon) <= sigma_prime:
             break
 
         x = x_new
+        k += 1
 
     return x
 
