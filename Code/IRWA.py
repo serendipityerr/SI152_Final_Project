@@ -18,7 +18,7 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
     Returns:
         x: Solution to the quadratic programming subproblem.
     """
-    
+
     # Initialization
     eta=0.9
     gamma=0.1
@@ -26,8 +26,8 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
     sigma=1e-6
     sigma_prime=1e-6
     max_iter=1000
-    x = x0 # wait to be define
-    epsilon = epsilon0 # wait to be define
+    x = x0 # wait to be defined
+    epsilon = epsilon0 # wait to be defined
     k = 0
     m = A1.shape[0] + A2.shape[0]
     I1 = range(A1.shape[0])  # Equality indices
