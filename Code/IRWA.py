@@ -108,14 +108,14 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
         # r = np.array([1 - v[i] * (np.dot(A1[i], x) + b1[i]) for i in I1] +
         #              [1 - v[i + len(I1)] * (np.dot(A2[j], x) + b2[j]) for j in range(A2.shape[0])])
 
-        for i in range(m):
-            if np.abs(q[i]) > M * (r[i] ** 2 + epsilon[i] ** 2) ** (0.5 + gamma):
-                epsilon = eta * epsilon
-                break
-        # if np.all(np.abs(q) <= M * (r**2 + epsilon**2) ** (0.5 + gamma)):
-        #     epsilon = eta * epsilon
-        # else:
-        #     epsilon = epsilon
+        # for i in range(m):
+        #     if np.abs(q[i]) > M * (r[i] ** 2 + epsilon[i] ** 2) ** (0.5 + gamma):
+        #         epsilon = eta * epsilon
+        #         break
+        if np.all(np.abs(q) <= M * (r**2 + epsilon**2) ** (0.5 + gamma)):
+            epsilon = eta * epsilon
+        else:
+            epsilon = epsilon
 
         # Step 3: Check stopping criteria
         # print("Step 3: Check stopping criteria")
