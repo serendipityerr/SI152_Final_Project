@@ -1,79 +1,86 @@
 import numpy as np
+from scipy.optimize import minimize
 
 
-def adal_solver(
-    H, g, A, b, I1, I2, x0, u0, mu, sigma=1e-6, sigma_prime=1e-6, max_iter=1000
-):
+def adal_solver(A, b, phi, x_init, u_init, mu, sigma, sigma_prime, max_iter=1000):
     """
-    Alternating Direction Augmented Lagrangian (ADAL) Algorithm.
+    Solve the optimization problem using the Alternating Direction Augmented Lagrangian (ADAL) algorithm.
 
     Parameters:
-    - H: Quadratic term in the objective (symmetric positive definite matrix).
-    - g: Linear term in the objective (vector).
-    - A: Constraint matrix.
-    - b: Constraint vector.
-    - I1: Indices of terms with |p_i| in the objective.
-    - I2: Indices of terms with max{p_i, 0} in the objective.
-    - x0: Initial guess for x.
-    - u0: Initial guess for dual variables (u).
-    - mu: Penalty parameter.
-    - sigma: Tolerance for x convergence.
-    - sigma_prime: Tolerance for constraint residuals.
-    - max_iter: Maximum number of iterations.
+        A (np.ndarray): Coefficient matrix.
+        b (np.ndarray): Constant vector.
+        phi (function): Function φ(x) to be minimized.
+        x_init (np.ndarray): Initial guess for x.
+        u_init (np.ndarray): Initial dual variable.
+        mu (float): Penalty parameter.
+        sigma (float): Tolerance for step size.
+        sigma_prime (float): Tolerance for constrained residual.
+        max_iter (int): Maximum number of iterations.
 
     Returns:
-    - x, p, u: Optimal solutions for variables x, p, and dual variables u.
+        x (np.ndarray): Solution vector x.
+        p (np.ndarray): Solution vector p.
+        u (np.ndarray): Dual variable.
     """
-    # Initialize variables
-    x = x0
-    u = u0
-    p = np.zeros(A.shape[0])  # Initialize p
+    # Initialization
+    x = x_init.copy()
+    u = u_init.copy()
+    p = np.zeros_like(b)
 
     for k in range(max_iter):
-        # Step 1: Solve subproblem for x
-        q = g + A.T @ (u + mu * (p - b))
-        x_new = np.linalg.solve(H + mu * A.T @ A, -q)
+        # Step 1: Solve augmented Lagrangian subproblems
+        # Solve for x
+        def lagrangian_x(x):
+            return (
+                phi(x)
+                + u.T @ (A @ x + b - p)
+                + (mu / 2) * np.linalg.norm(A @ x + b - p) ** 2
+            )
 
-        # Step 1: Solve subproblem for p
-        p_tilde = A @ x_new + b - u / mu
-        p_new = np.copy(p_tilde)
+        x_next = minimize(lagrangian_x, x, method="BFGS").x
 
-        # Apply the proximal operator for p terms
-        for i in range(len(p_tilde)):
-            if i in I1:  # |p_i|
-                p_new[i] = np.sign(p_tilde[i]) * max(abs(p_tilde[i]) - 1 / mu, 0)
-            elif i in I2:  # max{p_i, 0}
-                p_new[i] = max(p_tilde[i], 0)
+        # Solve for p
+        def lagrangian_p(p):
+            return (
+                u.T @ (A @ x_next + b - p)
+                + (mu / 2) * np.linalg.norm(A @ x_next + b - p) ** 2
+            )
 
-        # Step 2: Update dual variables
-        residual = A @ x_new + b - p_new
-        u_new = u + mu * residual
+        p_next = minimize(lagrangian_p, p, method="BFGS").x
 
-        # Check stopping criteria
+        # Step 2: Update dual variable u
+        u_next = u + (1 / mu) * (A @ x_next + b - p_next)
+
+        # Step 3: Check stopping criteria
         if (
-            np.linalg.norm(x_new - x) <= sigma
-            and np.max(np.abs(residual)) <= sigma_prime
+            np.linalg.norm(x_next - x) <= sigma
+            and np.max(np.abs(A @ x_next + b - p_next)) <= sigma_prime
         ):
             break
 
-        # Update variables for the next iteration
-        x, p, u = x_new, p_new, u_new
+        # Update variables for next iteration
+        x, p, u = x_next, p_next, u_next
 
     return x, p, u
 
 
-# Example Usage
-H = np.array([[4, 1], [1, 2]])  # Quadratic term
-g = np.array([-1, -1])  # Linear term
-A = np.array([[1, 1], [1, -1]])  # Constraint matrix
-b = np.array([1, 0])  # Constraint vector
-I1 = [0]  # Indices for |p_i|
-I2 = [1]  # Indices for max{p_i, 0}
-x0 = np.zeros(2)  # Initial x
-u0 = np.zeros(2)  # Initial dual variables
-mu = 10  # Penalty parameter
+# Example usage
+def phi(x):
+    return np.linalg.norm(x) ** 2  # Replace with actual φ(x)
 
-x_opt, p_opt, u_opt = adal_solver(H, g, A, b, I1, I2, x0, u0, mu)
-print("Optimal x:", x_opt)
-print("Optimal p:", p_opt)
-print("Optimal u:", u_opt)
+
+# Define problem parameters
+A = np.array([[1, 2], [3, 4]])
+b = np.array([1, 2])
+x_init = np.zeros(2)
+u_init = np.zeros(2)
+mu = 1.0
+sigma = 1e-4
+sigma_prime = 1e-4
+
+# Solve using ADAL
+x_sol, p_sol, u_sol = adal_solver(A, b, phi, x_init, u_init, mu, sigma, sigma_prime)
+
+print("Solution x:", x_sol)
+print("Solution p:", p_sol)
+print("Dual variable u:", u_sol)
