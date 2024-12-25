@@ -1,38 +1,33 @@
 import numpy as np
 from scipy.optimize import minimize
+from cvxopt import solvers, matrix
 
 
-def adal_solver(A, b, phi, x_init, u_init, mu, sigma, sigma_prime, max_iter=1000):
-    """
-    Solve the optimization problem using the Alternating Direction Augmented Lagrangian (ADAL) algorithm.
-
-    Parameters:
-        A (np.ndarray): Coefficient matrix.
-        b (np.ndarray): Constant vector.
-        phi (function): Function φ(x) to be minimized.
-        x_init (np.ndarray): Initial guess for x.
-        u_init (np.ndarray): Initial dual variable.
-        mu (float): Penalty parameter.
-        sigma (float): Tolerance for step size.
-        sigma_prime (float): Tolerance for constrained residual.
-        max_iter (int): Maximum number of iterations.
-
-    Returns:
-        x (np.ndarray): Solution vector x.
-        p (np.ndarray): Solution vector p.
-        u (np.ndarray): Dual variable.
-    """
-    # Initialization
-    x = x_init.copy()
-    u = u_init.copy()
-    p = np.zeros_like(b)
-
+def adal_solver(A1, A2, b1, b2, g, H):
+    A = np.concatenate((A1, A2), axis=0)
+    b = np.concatenate((b1, b2), axis=0)
+    mu = 1
+    sigma = 1e-5
+    sigma_prime = 1e-5
+    max_iter = 10000
+    m = A1.shape[0] + A2.shape[0]
+    n = H.shape[0]
+    x = np.zeros(n)
+    p = A @ x + b
+    u = np.zeros(m)
+    M1 = 0
+    M2 = 0
     for k in range(max_iter):
+        # print(k, x)
+
         # Step 1: Solve augmented Lagrangian subproblems
         # Solve for x
         def lagrangian_x(x):
             return (
-                phi(x)
+                g.T @ x
+                + 0.5 * x.T @ H @ x
+                + M1 * np.sum(np.abs(A1 @ x + b1))
+                + M2 * np.sum(np.maximum(0, A2 @ x + b2))
                 + u.T @ (A @ x + b - p)
                 + (mu / 2) * np.linalg.norm(A @ x + b - p) ** 2
             )
@@ -42,7 +37,11 @@ def adal_solver(A, b, phi, x_init, u_init, mu, sigma, sigma_prime, max_iter=1000
         # Solve for p
         def lagrangian_p(p):
             return (
-                u.T @ (A @ x_next + b - p)
+                g.T @ x_next
+                + 0.5 * x_next.T @ H @ x_next
+                + M1 * np.sum(np.abs(A1 @ x_next + b1))
+                + M2 * np.sum(np.maximum(0, A2 @ x_next + b2))
+                + u.T @ (A @ x_next + b - p)
                 + (mu / 2) * np.linalg.norm(A @ x_next + b - p) ** 2
             )
 
@@ -60,27 +59,18 @@ def adal_solver(A, b, phi, x_init, u_init, mu, sigma, sigma_prime, max_iter=1000
 
         # Update variables for next iteration
         x, p, u = x_next, p_next, u_next
+        M1 += 1
+        M2 += 1
 
     return x, p, u
 
 
-# Example usage
-def phi(x):
-    return np.linalg.norm(x) ** 2  # Replace with actual φ(x)
-
-
-# Define problem parameters
-A = np.array([[1, 2], [3, 4]])
-b = np.array([1, 2])
-x_init = np.zeros(2)
-u_init = np.zeros(2)
-mu = 1.0
-sigma = 1e-4
-sigma_prime = 1e-4
-
-# Solve using ADAL
-x_sol, p_sol, u_sol = adal_solver(A, b, phi, x_init, u_init, mu, sigma, sigma_prime)
-
-print("Solution x:", x_sol)
-print("Solution p:", p_sol)
-print("Dual variable u:", u_sol)
+np.random.seed(42)
+H = np.array([[4.0, 1.0], [1.0, 2.0]])
+g = np.array([1.0, 1.0])
+A2 = np.array([[-1.0, 0.0], [0.0, -1.0]])
+b2 = np.array([0.0, 0.0])
+A1 = np.array([[1.0, 1.0]])
+b1 = np.array([-1.0])
+x, p, u = adal_solver(A1, A2, b1, b2, g, H)
+print(x)
