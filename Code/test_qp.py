@@ -39,14 +39,14 @@ def initialize_experiment():
     
     return matrix(A1), matrix(b1), matrix(A2), matrix(b2), matrix(g), matrix(H)
 
-A1, b1, A2, b2, g, H = initialize_experiment()
+# A1, b1, A2, b2, g, H = initialize_experiment()
 
-# H = matrix([[4., 1.], [1., 2.]])
-# g = matrix([1., 1.])
-# A2 = matrix([[-1., 0.], [0., -1.]])
-# b2 = matrix([0., 0.])
-# A1 = matrix([1., 1.], (1, 2))
-# b1 = matrix([1.])
+H = matrix([[4., 1.], [1., 2.]])
+g = matrix([1., 1.])
+A2 = matrix([[-1., 0.], [0., -1.]])
+b2 = matrix([0., 0.])
+A1 = matrix([1., 1.], (1, 2))
+b1 = matrix([1.])
 '''
 Optimal solution found.
 [ 2.50e-01]

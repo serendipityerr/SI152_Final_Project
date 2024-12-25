@@ -25,24 +25,26 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
     # Initialization
     A = np.concatenate([A1, A2])
     b = np.concatenate([b1, b2])
-    print(A.shape)
-    print(A[0].shape)
-    print(b.shape)
+    print(A)
+    # print(A[0].shape)
+    print(b)
     # print(b)
     eta = 0.6
     gamma = 1 / 6
     M = 1e4
-    sigma = 1e-3
-    sigma_prime = 1e-3
-    max_iter = 1
+    sigma = 1e-5
+    sigma_prime = 1e-5
+    max_iter = 1e4
     k = 0
     m = A1.shape[0] + A2.shape[0]
     n = H.shape[0]
     print("m: ", m)
     print("n: ", n)
     x = np.zeros(n) # wait to be defined
-    epsilon = 2000 * np.ones(m) # influence a lot
-    print(epsilon.shape)
+    epsilon = 2e3 * np.ones(m) # influence a lot
+
+    M1 = 1
+    M2 = 1
 
     while k < max_iter:
         # Step 1: Solve the reweighted subproblem
@@ -52,12 +54,12 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
 
         for i in range(m):
             if i < A1.shape[0]:
-                wi = 1 / np.sqrt((np.dot(A[i], x) + b[i]) ** 2 + epsilon[i] ** 2)
+                wi = M1 / np.sqrt((np.dot(A[i], x) + b[i]) ** 2 + epsilon[i] ** 2)
                 vi = b[i]
             else:
                 max_term_w = max(np.dot(A[i], x) + b[i], 0)
                 max_term_v = max(-np.dot(A[i], x), b[i])
-                wi = 1 / np.sqrt(max_term_w ** 2 + epsilon[i] ** 2)
+                wi = M2 / np.sqrt(max_term_w ** 2 + epsilon[i] ** 2)
                 vi = max_term_v
             W_diag.append(wi)
             v.append(vi)
@@ -112,19 +114,33 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
         #     if np.abs(q[i]) > M * (r[i] ** 2 + epsilon[i] ** 2) ** (0.5 + gamma):
         #         epsilon = eta * epsilon
         #         break
+        print(M * (r**2 + epsilon**2) ** (0.5 + gamma))
+        print(epsilon)
         if np.all(np.abs(q) <= M * (r**2 + epsilon**2) ** (0.5 + gamma)):
-            epsilon = eta * epsilon
+            epsilon_new = eta * epsilon
+            # for i in range(A1.shape[0], m):
+            #     if np.dot(A[i], x) + b[i] <= -epsilon_new[i]:
+            #         epsilon_new[i] = epsilon[i]
         else:
-            epsilon = epsilon
+            epsilon_new = epsilon
 
         # Step 3: Check stopping criteria
         # print("Step 3: Check stopping criteria")
-        if np.linalg.norm(x_new - x) <= sigma and np.linalg.norm(epsilon) <= sigma_prime:
+        if np.linalg.norm(x_new - x) <= sigma and np.linalg.norm(epsilon) <= sigma_prime and np.all(np.dot(A1, x_new) == -b1) and np.all(np.dot(A2, x_new) <= -b2):
+            print(np.linalg.norm(x_new - x))
+            print(np.linalg.norm(epsilon))
+            print(np.dot(A1, x_new))
+            print(np.dot(A2, x_new))
             break
+        
 
         x = x_new
+        epsilon = epsilon_new
         print("k: ", k)
+        print("x: ", x)
         k += 1
+        M1 += 1
+        M2 += 1
 
     return x
 
@@ -178,12 +194,12 @@ if __name__ == "__main__":
     '''
     # A1, b1, A2, b2, g, H = initialize_experiment()
 
-    H = np.array([[4., 1.], [1., 2.]])
-    g = np.array([1., 1.])
-    A2 = np.array([[-1., 0.], [0., -1.]])
-    b2 = np.array([0., 0.])
-    A1 = np.array([[1.], [1.]]).T
+    H = np.array([[1, 0], [0, 1]])
+    g = np.array([1, 1])
+    A2 = np.array([[-1, 0], [0, -1]])
+    b2 = np.array([0, 0])
+    A1 = np.array([[1], [1]]).T
     print(A1.shape)
-    b1 = np.array([1.])
+    b1 = np.array([-1])
 
     print("Result: ", IRWA_QP_solver(A1, A2, b1, b2, g, H))
