@@ -35,16 +35,18 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
     M = 1e4
     sigma = 1e-5
     sigma_prime = 1e-5
-    max_iter = 1e5
+    max_iter = 1e3
     m = A1.shape[0] + A2.shape[0]
     n = H.shape[0]
     print("m: ", m)
     print("n: ", n)
     M1 = 1
     M2 = 1
-    while True:
-        k = 0
+    iter = 0
+    
+    while iter < max_iter:
         x = np.zeros(n) # wait to be defined
+        k = 0
         epsilon = 2e3 * np.ones(m) # influence a lot
         while k < max_iter:
             # Step 1: Solve the reweighted subproblem
@@ -129,6 +131,7 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
 
             # Step 3: Check stopping criteria
             # print("Step 3: Check stopping criteria")
+            # if np.linalg.norm(x_new - x) <= sigma and np.linalg.norm(epsilon) <= sigma_prime and np.all(np.abs(np.dot(A1, x) + b1) <= 1e-5) and np.all(np.dot(A2, x) <= -b2):
             if np.linalg.norm(x_new - x) <= sigma and np.linalg.norm(epsilon) <= sigma_prime:
                 # print(np.linalg.norm(x_new - x))
                 # print(np.linalg.norm(epsilon))
@@ -142,21 +145,29 @@ def IRWA_QP_solver(A1, A2, b1, b2, g, H):
             print("k: ", k)
             print("x: ", x)
             k += 1
-
         if np.all(np.abs(np.dot(A1, x) + b1) <= 1e-5) and np.all(np.dot(A2, x) <= -b2):
             break
-        M1 += 10
-        M2 += 10
-
+        M1 += 1
+        M2 += 1
+        iter += 1
+    
+    print("M1: ", M1)
     return x
 
+def objective(g, H, x):
+    return 0.5 * np.dot(np.dot(x.T, H), x) + np.dot(g, x)
+
+def constraint(A1, b1, A2, b2, x):
+    if np.all(np.abs(np.dot(A1, x) + b1) <= 1e-5) and np.all(np.dot(A2, x) <= -b2):
+        return True
+    return False
 
 def initialize_experiment(type):
     # Problem dimensions 300 1000
-    w_A1 = 3
-    h_A1 = 6
-    w_A2 = 3
-    h_A2 = 6
+    w_A1 = 1
+    h_A1 = 2
+    w_A2 = 1
+    h_A2 = 2
     assert h_A1 == h_A2
     m, n = w_A1 + w_A2, h_A1  # A's shape
     
@@ -189,7 +200,7 @@ def initialize_experiment(type):
     if type == "matrix":
         return matrix(A1), matrix(b1), matrix(A2), matrix(b2), matrix(g), matrix(H)
     elif type == "numpy":
-        return A1, -b1, A2, -b2, g, H
+        return A1, b1, A2, b2, g, H
     else:
         raise NotImplementedError("Not implemented type")
     
@@ -205,7 +216,26 @@ if __name__ == "__main__":
     b1 = np.array([1.])
     '''
     A1_numpy, b1_numpy, A2_numpy, b2_numpy, g_numpy, H_numpy = initialize_experiment("numpy")
-    A1_matrix, b1_matrix, A2_matrix, b2_matrix, g_matrix, H_matrix = initialize_experiment("matrix")
+    # A1_matrix, b1_matrix, A2_matrix, b2_matrix, g_matrix, H_matrix = initialize_experiment("matrix")
+    A1_matrix = matrix(A1_numpy)
+    b1_matrix = matrix(-b1_numpy)
+    A2_matrix = matrix(A2_numpy)
+    b2_matrix = matrix(-b2_numpy)
+    g_matrix = matrix(g_numpy)
+    H_matrix = matrix(H_numpy)
+    # print("A1_numpy", A1_numpy)
+    # print("b1_numpy", b1_numpy)
+    # print("A2_numpy", A2_numpy)
+    # print("b2_numpy", b2_numpy)
+    # print("g_numpy", g_numpy)
+    # print("H_numpy", H_numpy)
+    # print("---------------------------------------")
+    # print("A1_matrix", A1_matrix)
+    # print("b1_matrix", b1_matrix)
+    # print("A2_matrix", A2_matrix)
+    # print("b2_matrix", b2_matrix)
+    # print("g_matrix", g_matrix)
+    # print("H_matrix", H_matrix)
 
     # H = np.array([[4, 1], [1, 2]])
     # g = np.array([1, 1])
@@ -216,11 +246,15 @@ if __name__ == "__main__":
     # b1 = np.array([-1])
 
     cvxopt_sol = solvers.qp(H_matrix, g_matrix, A2_matrix, b2_matrix, A1_matrix, b1_matrix)  
-    cvxopt_x = np.array(cvxopt_sol['x'])
-
+    cvxopt_x = np.array(cvxopt_sol['x']).reshape(-1)
     irwa_x = IRWA_QP_solver(A1_numpy, A2_numpy, b1_numpy, b2_numpy, g_numpy, H_numpy)
     # irwa_x = IRWA_QP_solver(A1, A2, b1, b2, g, H)
 
     print("Result: ", cvxopt_x)
     print("Result: ", irwa_x)
+    print("Objective: ", objective(g_numpy, H_numpy, cvxopt_x))
+    print("Objective: ", objective(g_numpy, H_numpy, irwa_x))
+    print("Constraint: ", constraint(A2_numpy, b2_numpy, A1_numpy, b1_numpy, cvxopt_x))
+    print("Constraint: ", constraint(A1_numpy, b1_numpy, A2_numpy, b2_numpy, irwa_x))
     print("Norm: ", np.linalg.norm(cvxopt_x - irwa_x))
+
