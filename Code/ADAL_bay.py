@@ -15,7 +15,7 @@ def objective_value(g, H, x):
     return 0.5 * np.dot(np.dot(x.T, H), x) + np.dot(g, x)
 
 
-def adal_solver(A1, A2, b1, b2, g, H, M1=0, M2=0):
+def adal_solver(A1, A2, b1, b2, g, H, M1=10, M2=10):
     A = np.concatenate((A1, A2))
     b = np.concatenate((b1, b2))
     mu = 1
@@ -73,7 +73,7 @@ def adal_solver(A1, A2, b1, b2, g, H, M1=0, M2=0):
 
 
 A1, b1, A2, b2, g, H = initialize_experiment("numpy")
-
+pass
 
 def experimentSetup():
     # 生成实验数据
@@ -123,10 +123,16 @@ H_matrix = matrix(H)
 cvxopt_sol = solvers.qp(H_matrix, g_matrix, A2_matrix, b2_matrix, A1_matrix, b1_matrix)
 cvxopt_x = np.array(cvxopt_sol["x"]).flatten()
 
+print("Optimal Sol")
 print("Result: ", cvxopt_x)
 print("objective:", objective_value(g, H, cvxopt_x))
+print("ADAL Bay")
 print("Result: ", x)
 print("objective:", objective_value(g, H, x))
+# print("Norm: ", np.linalg.norm(cvxopt_x - x))
 
-print("Norm: ", np.linalg.norm(cvxopt_x - x))
+print("Fixed M1, Fixed M2")
+x, p, u = adal_solver(A1, A2, b1, b2, g, H)
+print("Result: ", x)
+print("objective:", objective_value(g, H, x))
 # 画出目标函数的收敛过程
