@@ -10,7 +10,7 @@ from skopt.space import Real
 import matplotlib.pyplot as plt
 from IRWA import initialize_experiment
 
-
+# np.random.seed(42)
 def objective_value(g, H, x):
     return 0.5 * np.dot(np.dot(x.T, H), x) + np.dot(g, x)
 
@@ -130,5 +130,3 @@ print("objective:", objective_value(g, H, x))
 
 print("Norm: ", np.linalg.norm(cvxopt_x - x))
 # 画出目标函数的收敛过程
-
-np.random.seed(42)
