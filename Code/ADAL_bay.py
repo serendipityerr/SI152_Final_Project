@@ -2,7 +2,6 @@ import numpy as np
 from scipy.optimize import minimize
 from cvxopt import solvers, matrix
 import numpy as np
-from IRWA import initialize_experiment
 import numpy as np
 from scipy.optimize import minimize
 from skopt import gp_minimize
@@ -70,7 +69,8 @@ def adal_solver(A1, b1, A2, b2, g, H, M1=1, M2=1):
 
 def adal_solver_bay(A1, b1, A2, b2, g, H):
     experimentPara = experimentSetup(A1, b1, A2, b2, g, H)
-
+    iter_M = []
+    iter_objective = []
     def objective_func(params):
         M1, M2 = params
         A1, b1, A2, b2, g, H = experimentPara.para()
@@ -85,9 +85,18 @@ def adal_solver_bay(A1, b1, A2, b2, g, H):
         else:
             return value
 
+    def save_para(res):
+        M1, M2 = res.x
+        iter_M.append([M1, M2])
+        iter_objective.append(res.fun)
+
     result = gp_minimize(
-        objective_func, experimentPara.bay_para(), n_calls=100, random_state=42
+        objective_func,
+        experimentPara.bay_para(),
+        n_calls=100,
+        random_state=42,
+        callback=[save_para],
     )
     best_M1, best_M2 = result.x
     x, p, u = adal_solver(A1, b1, A2, b2, g, H, best_M1, best_M2)
-    return x, p, u, best_M1, best_M2
+    return x, p, u, best_M1, best_M2, iter_M, iter_objective

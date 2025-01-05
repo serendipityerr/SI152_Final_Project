@@ -83,7 +83,8 @@ def irwa_solver(A1, b1, A2, b2, g, H, M1=1, M2=1):
 
 def irwa_solver_bay(A1, b1, A2, b2, g, H):
     experimentPara = experimentSetup(A1, b1, A2, b2, g, H)
-
+    iter_M = []
+    iter_objective = []
     def objective_func(params):
         M1, M2 = params
         A1, b1, A2, b2, g, H = experimentPara.para()
@@ -95,39 +96,19 @@ def irwa_solver_bay(A1, b1, A2, b2, g, H):
         constraint_violation_2 = np.sum(np.maximum(0, A2 @ x + b2))
         value = g.T @ x + 0.5 * x.T @ H @ x
         return value + constraint_violation_1 * 1000 + constraint_violation_2 * 1000
-        if constraint_violation_1 > 0 or constraint_violation_2 > 0:
-            return 0
-        else:
-            return value
+
+    def save_para(res):
+        M1, M2 = res.x
+        iter_M.append([M1, M2])
+        iter_objective.append(res.fun)
 
     result = gp_minimize(
-        objective_func, experimentPara.bay_para(), n_calls=100, random_state=42
+        objective_func,
+        experimentPara.bay_para(),
+        n_calls=100,
+        random_state=42,
+        callback=[save_para],
     )
     best_M1, best_M2 = result.x
     x = irwa_solver(A1, b1, A2, b2, g, H, best_M1, best_M2)
-    return x, best_M1, best_M2
-
-
-# if __name__ == "__main__":
-#     '''
-#     H = np.array([[4., 1.], [1., 2.]])
-#     g = np.array([1., 1.])
-#     A2 = np.array([[-1., 0.], [0., -1.]])
-#     b2 = np.array([0., 0.])
-#     A1 = np.array([1., 1.])
-#     b1 = np.array([1.])
-#     '''
-#     A1_numpy, b1_numpy, A2_numpy, b2_numpy, g_numpy, H_numpy = initialize_experiment(
-#         "numpy"
-#     )
-#     A1_matrix = matrix(A1_numpy)
-#     b1_matrix = matrix(-b1_numpy)
-#     A2_matrix = matrix(A2_numpy)
-#     b2_matrix = matrix(-b2_numpy)
-#     g_matrix = matrix(g_numpy)
-#     H_matrix = matrix(H_numpy)
-
-#     irwa_x = IRWA_QP_solver(A1_numpy, A2_numpy, b1_numpy, b2_numpy, g_numpy, H_numpy)
-
-#     print("Result: ", irwa_x)
-#     print("Objective: ", objective(g_numpy, H_numpy, irwa_x))
+    return x, best_M1, best_M2, iter_M, iter_objective

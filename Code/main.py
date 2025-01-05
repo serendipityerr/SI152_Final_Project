@@ -25,8 +25,8 @@ x, p, u = adal_solver(A1, b1, A2, b2, g, H)
 print("ADAL Result: ", x)
 print("ADAL Objective: ", objective(g, H, x))
 
-x, p, u, M1, M2 = adal_solver_bay(A1, b1, A2, b2, g, H)
-print("ADAL Bay Result: ", x)
+x, p, u, M1, M2, iter_M, iter_objective = adal_solver_bay(A1, b1, A2, b2, g, H)
+print("ADAL Bay Result: ", x, M1, M2)
 print("ADAL Bay Objective: ", objective(g, H, x))
 try:
     x = irwa_solver(A1, b1, A2, b2, g, H)
@@ -35,6 +35,6 @@ try:
 except:
     print("IRWA Result: Failed")
 
-x, M1, M2 = irwa_solver_bay(A1, b1, A2, b2, g, H)
-print("IRWA Bay Result: ", x)
+x, M1, M2, iter_M, iter_objective = irwa_solver_bay(A1, b1, A2, b2, g, H)
+print("IRWA Bay Result: ", x, M1, M2)
 print("IRWA Bay Objective: ", objective(g, H, x))
