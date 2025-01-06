@@ -16,7 +16,7 @@ def adal_solver(A1, b1, A2, b2, g, H, M1=1, M2=1):
     mu = 1
     sigma = 1e-5
     sigma_prime = 1e-5
-    max_iter = 1000
+    max_iter = 100
     m = A1.shape[0] + A2.shape[0]
     n = H.shape[0]
     x = np.zeros(n)
