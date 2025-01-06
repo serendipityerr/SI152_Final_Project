@@ -3,7 +3,8 @@ import numpy as np
 from skopt.space import Real
 
 
-def initialize_experiment(w_A1=1, w_A2=1, h_A=2, type="numpy"):
+def initialize_experiment(w_A1=1, w_A2=1, h_A=2, seed=42, type="numpy"):
+    np.random.seed(seed)
     # Problem dimensions 300 1000
     h_A1 = h_A
     h_A2 = h_A1
